@@ -44,7 +44,7 @@ namespace FolderOrganizer
 
                     if (!Directory.Exists(destinationFilePath))
                     {
-
+                        e
                     }
                     File.Copy(sourceFilePath, destinationFilePath, false);
                 }
