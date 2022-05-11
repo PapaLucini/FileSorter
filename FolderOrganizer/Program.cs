@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using FolderOrganizer.Models;
 
 namespace FolderOrganizer
 {
@@ -13,6 +14,15 @@ namespace FolderOrganizer
         {
             Console.Write("Indicate source path: ");
             var sourceDirectoryPath = Console.ReadLine();
+
+            if (!Directory.Exists(sourceDirectoryPath))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Source path not found.");
+                Console.ResetColor();
+
+                return;
+            }
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Files under source directory:");
@@ -41,54 +51,47 @@ namespace FolderOrganizer
                 var copyOrMove = Console.ReadLine();
 
                 var files = Directory.GetFiles(sourceDirectoryPath, $"*.{fileExtension}", SearchOption.AllDirectories);
-                //var files1 = Directory.GetFiles(sourceDirectoryPath, "*", SearchOption.AllDirectories);
 
-                string sourceFilePath, destinationFileFolderPath, destinationFileFullPath;
-                DateTime fileModifiedDate = new DateTime();
-                DateTime fileCreateDate = new DateTime();
-                DateTime originalDate = new DateTime();
-                int movedFiles = 0;
+                var fileSettings = new FileSettings();
+
                 foreach (var file in files)
                 {
-                    //sourceFilePath = Path.Combine(sourceDirectoryPath, Path.GetFileName(file));
-                    sourceFilePath = Path.GetFullPath(file);
-                    fileModifiedDate = new FileInfo(sourceFilePath).LastWriteTimeUtc ;
-                    fileCreateDate = new FileInfo(sourceFilePath).CreationTime ;
+                    fileSettings.SourcePath = Path.GetFullPath(file);
+                    fileSettings.ModifiedDate = new FileInfo(fileSettings.SourcePath).LastWriteTimeUtc;
+                    fileSettings.CreationDate = new FileInfo(fileSettings.SourcePath).CreationTime;
 
-                    originalDate = fileModifiedDate < fileCreateDate ? fileModifiedDate : fileCreateDate;
-
-                    //Handle gopro files
+                    //Handle gopro files -- GOPRO file set modified date as 2016
                     if (file.StartsWith("GH") || file.StartsWith("GOPR") || file.StartsWith("GX"))
-                    {
-                        originalDate = fileCreateDate;
-                    }
+                        fileSettings.OriginalDate = fileSettings.CreationDate;
+                    else
+                        fileSettings.OriginalDate = fileSettings.ModifiedDate < fileSettings.CreationDate ? fileSettings.ModifiedDate : fileSettings.CreationDate;
 
                     //Create target directory path with [target directory + year + month]
-                    destinationFileFolderPath = Path.Combine(targetDirectoryPath, originalDate.Year.ToString(), originalDate.ToString("MM"));
+                    fileSettings.DestinationFolderPath = Path.Combine(targetDirectoryPath, fileSettings.OriginalDate.Year.ToString(), fileSettings.OriginalDate.ToString("MM"));
 
-                    if (!Directory.Exists(destinationFileFolderPath))
-                        Directory.CreateDirectory(destinationFileFolderPath);
+                    if (!Directory.Exists(fileSettings.DestinationFolderPath))
+                        Directory.CreateDirectory(fileSettings.DestinationFolderPath);
 
                     //Destination path + file name
-                    destinationFileFullPath = Path.Combine(destinationFileFolderPath, Path.GetFileName(file));
+                    fileSettings.FullDestinationPath = Path.Combine(fileSettings.DestinationFolderPath, Path.GetFileName(file));
 
-                    if (!Directory.Exists(destinationFileFullPath))
+                    if (!Directory.Exists(fileSettings.FullDestinationPath))
                     {
                         try
                         {
                             switch (copyOrMove.ToLower())
                             {
                                 case "m":
-                                    File.Move(sourceFilePath, destinationFileFullPath);
+                                    File.Move(fileSettings.SourcePath, fileSettings.FullDestinationPath);
                                     break;
                                 case "c":
                                 default:
-                                    File.Copy(sourceFilePath, destinationFileFullPath, false);
+                                    File.Copy(fileSettings.SourcePath, fileSettings.FullDestinationPath, false);
                                     break;
-
                             }
 
-                            movedFiles++;
+                            fileSettings.MovedFiles++;
+
                             Console.ForegroundColor = ConsoleColor.Green;
                             Console.Write($"Moved file: ");
                             Console.ForegroundColor = ConsoleColor.Blue;
@@ -96,11 +99,11 @@ namespace FolderOrganizer
                             Console.ForegroundColor = ConsoleColor.Green;
                             Console.Write(" from : ");
                             Console.ForegroundColor = ConsoleColor.Blue;
-                            Console.Write(sourceFilePath);
+                            Console.Write(fileSettings.SourcePath);
                             Console.ForegroundColor = ConsoleColor.Green;
                             Console.Write(" to ");
                             Console.ForegroundColor = ConsoleColor.Blue;
-                            Console.WriteLine(destinationFileFolderPath);
+                            Console.WriteLine(fileSettings.FullDestinationPath);
                             Console.ResetColor();
                         }
                         catch (Exception ex)
@@ -115,19 +118,18 @@ namespace FolderOrganizer
                     else
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"A file with the name:{Path.GetFileName(file)} already exists. Path: {sourceFilePath}");
+                        Console.WriteLine($"A file with the name:{Path.GetFileName(file)} already exists. Path: {fileSettings.SourcePath}");
                         Console.ResetColor();
                     }
                 }
 
-                Console.WriteLine($"Files moved: {movedFiles}");
-
+                Console.WriteLine($"Files moved: {fileSettings.MovedFiles}");
             }
             else
                 Console.WriteLine("Path does not exist");
 
             Console.WriteLine("Job Finished");
-            Console.ReadLine();
+
             return;
         }
     }
